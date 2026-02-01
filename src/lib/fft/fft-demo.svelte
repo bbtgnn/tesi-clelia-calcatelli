@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, tick } from 'svelte';
+	import { startFFTLoop } from '$lib/audio-analyzer/audio-analyzer';
 	import { loadPlayAndAnalyze } from '$lib/fft';
 	import type { AudioAnalyzer } from '$lib/fft';
 	// Default: use a local sound so the demo works without external URLs
@@ -26,19 +27,21 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let canvasEl = $state<HTMLCanvasElement | null>(null);
-	let rafId = $state<number | null>(null);
 
-	// Refs for the rAF loop so the callback always has current analyzer/canvas (avoids stale $state in async)
+	// Refs for the loop callback (avoids stale $state in async)
 	let analyzerRef: AudioAnalyzer | null = null;
 	let canvasRef: HTMLCanvasElement | null = null;
+	let stopFFTLoopRef: (() => void) | null = null;
 	// Capture callback in ref so it's available inside rAF/setTimeout (props can be undefined there)
-	let onPeakBinChangeRef: ((
-		barIndex: number,
-		binIndex: number,
-		previousBarIndex: number,
-		previousBinIndex: number,
-		totalBins: number
-	) => void) | null = null;
+	let onPeakBinChangeRef:
+		| ((
+				barIndex: number,
+				binIndex: number,
+				previousBarIndex: number,
+				previousBinIndex: number,
+				totalBins: number
+		  ) => void)
+		| null = null;
 	// Peak debounce: emit bar + bin (current and previous) and totalBins; only when peak bar has been stable for PEAK_BIN_DEBOUNCE_MS
 	let lastEmittedPeakBar: number | null = null;
 	let lastEmittedPeakBin: number | null = null;
@@ -48,30 +51,22 @@
 	let pendingTotalBins: number | null = null;
 
 	const FFT_SIZE = 256;
-	const BAR_COUNT = 20; // number of bars to draw (we'll average bins)
+	const BAR_COUNT = 20;
 
-	function drawBars() {
-		const a = analyzerRef;
+	function onFFTFrame(normalized: number[], rawData: Float32Array) {
 		const c = canvasRef;
-		if (!a || !c) return;
+		if (!c) return;
 
-		const ctx = c.getContext('2d');
-		if (!ctx) return;
-
-		const data = a.getFFTData();
-		const numBins = data.length;
-
-		// Index of the highest bin this frame (raw FFT bins, 0..numBins-1)
+		const numBins = rawData.length;
+		// Peak detection from raw FFT data
 		let peakBin = 0;
 		for (let i = 1; i < numBins; i++) {
-			if (data[i] > data[peakBin]) peakBin = i;
+			if (rawData[i] > rawData[peakBin]) peakBin = i;
 		}
-
 		const binsPerBar = Math.max(1, Math.floor(numBins / BAR_COUNT));
-		// Bar index (0..BAR_COUNT-1) that contains the peak bin — matches the drawn bars so no "overflow"
 		const peakBarIndex = Math.min(BAR_COUNT - 1, Math.floor(peakBin / binsPerBar));
 
-		// Emit peak bar change with debouncing: only reset the 80ms timer when the peak *bar* changes
+		// Emit peak bar change with debouncing
 		const cb = onPeakBinChangeRef;
 		if (cb && peakBarIndex !== lastEmittedPeakBar) {
 			const peakChanged = pendingPeakBar !== peakBarIndex;
@@ -81,20 +76,10 @@
 				pendingTotalBins = numBins;
 				if (peakBinTimeoutId != null) clearTimeout(peakBinTimeoutId);
 				peakBinTimeoutId = setTimeout(() => {
-					if (
-						pendingPeakBar != null &&
-						pendingPeakBin != null &&
-						pendingTotalBins != null
-					) {
+					if (pendingPeakBar != null && pendingPeakBin != null && pendingTotalBins != null) {
 						const prevBar = lastEmittedPeakBar ?? -1;
 						const prevBin = lastEmittedPeakBin ?? -1;
-						cb(
-							pendingPeakBar,
-							pendingPeakBin,
-							prevBar,
-							prevBin,
-							pendingTotalBins
-						);
+						cb(pendingPeakBar, pendingPeakBin, prevBar, prevBin, pendingTotalBins);
 						lastEmittedPeakBar = pendingPeakBar;
 						lastEmittedPeakBin = pendingPeakBin;
 						pendingPeakBar = null;
@@ -106,46 +91,31 @@
 			}
 		}
 
+		// Render: draw bars from normalized values (max is 1)
+		const ctx = c.getContext('2d');
+		if (!ctx) return;
 		const w = c.width;
 		const h = c.height;
 		const barWidth = w / BAR_COUNT;
 		const gap = 2;
+		const minBarHeight = 2;
 
 		ctx.fillStyle = 'rgb(15 23 42)';
 		ctx.fillRect(0, 0, w, h);
-		const barValues: number[] = [];
 
 		for (let i = 0; i < BAR_COUNT; i++) {
-			let sum = 0;
-			for (let j = 0; j < binsPerBar; j++) {
-				sum += data[i * binsPerBar + j] ?? 0;
-			}
-			barValues.push(sum / binsPerBar);
-		}
-
-		// Data is 0–1 but often tiny (e.g. max ~0.01). Normalize to frame max so relative levels are visible.
-		const frameMax = Math.max(...barValues, 1e-9);
-		const minBarHeight = 2;
-
-		for (let i = 0; i < BAR_COUNT; i++) {
-			const value = barValues[i];
-			const normalized = value / frameMax;
-			const barHeight = Math.max(minBarHeight, normalized * h * 0.9);
+			const value = normalized[i] ?? 0;
+			const barHeight = Math.max(minBarHeight, value * h * 0.9);
 			const x = i * barWidth + gap / 2;
 			const y = h - barHeight;
-
-			ctx.fillStyle = `hsl(${200 + normalized * 80} 70% 50%)`;
+			ctx.fillStyle = `hsl(${200 + value * 80} 70% 50%)`;
 			ctx.fillRect(x, y, barWidth - gap, barHeight);
 		}
-
-		rafId = requestAnimationFrame(drawBars);
 	}
 
 	function stopVisualization() {
-		if (rafId != null) {
-			cancelAnimationFrame(rafId);
-			rafId = null;
-		}
+		stopFFTLoopRef?.();
+		stopFFTLoopRef = null;
 		if (peakBinTimeoutId != null) {
 			clearTimeout(peakBinTimeoutId);
 			peakBinTimeoutId = null;
@@ -186,8 +156,8 @@
 			await tick();
 			canvasRef = canvasEl;
 
-			if (canvasRef) {
-				drawBars();
+			if (canvasRef && analyzerRef) {
+				stopFFTLoopRef = startFFTLoop(() => analyzerRef!.getFFTData(), BAR_COUNT, onFFTFrame);
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
