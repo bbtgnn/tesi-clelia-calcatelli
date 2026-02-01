@@ -18,19 +18,20 @@
 
 		end.style.transformBox = 'fill-box';
 		end.style.transformOrigin = '50% 50%';
+		end.style.visibility = 'hidden';
 
 		start.removeAttribute('id');
 		start.classList.add('start');
 		start.style.transformBox = 'fill-box';
 		start.style.transformOrigin = '50% 50%';
 
-		for (let i = 0; i < 20; i++) {
+		for (let i = 0; i < 40; i++) {
 			const clone = start.cloneNode(true);
 			start.parentNode?.appendChild(clone);
 		}
 
 		utils.set('.start', {
-			rotate: -90
+			rotate: -135
 		});
 
 		animation = animate('.start', {
@@ -39,7 +40,7 @@
 			duration,
 			loop: true,
 			alternate: true,
-			delay: stagger(100),
+			delay: stagger(50),
 			rotate: 0,
 			autoplay: false,
 			onUpdate: (anim) => {
@@ -57,4 +58,4 @@
 	}
 </script>
 
-<div {@attach attach}></div>
+<div class="h-[400px] w-[600px] [&>svg]:h-full [&>svg]:w-full" {@attach attach}></div>
