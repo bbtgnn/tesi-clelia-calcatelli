@@ -1,12 +1,13 @@
 <script lang="ts">
-	import SvgRenderer from '$lib/components/svg-renderer.svelte';
-	import svgCode from './poster-1.svg?raw';
-	import { animate, svg, stagger, utils, type JSAnimation } from 'animejs';
 	import * as AudioAnalyzer from '$lib/audio-analyzer';
-	import audioUrl from '$lib/fft/sounds/meccanismo-industriale-in-funzione.mp3?url';
-	import { setControls } from '../+layout.svelte';
+	import SvgRenderer from '$lib/components/svg-renderer.svelte';
 	import { Loop } from '$lib/utils/loop';
 	import { createThrottled } from '$lib/utils/throttle';
+	import { animate, stagger, svg, utils, type JSAnimation } from 'animejs';
+
+	import { setControls } from '../+layout.svelte';
+	import audioUrl from './audio.mp3?url';
+	import svgCode from './poster.svg?raw';
 
 	//
 
@@ -17,7 +18,7 @@
 	});
 
 	const duration = 1000;
-	let maxProgress = 1;
+
 	let previousHighestBar: number | undefined;
 	let animation: JSAnimation | undefined;
 
@@ -28,6 +29,17 @@
 	let done = false;
 
 	const loop = new Loop({
+		onPlay: () => {
+			if (!animation) {
+				createAnimation();
+			}
+			analyzer.start();
+			animation?.play();
+		},
+		onPause: () => {
+			analyzer.stop();
+			animation?.pause();
+		},
 		onUpdate: () => {
 			const { highestBar } = analyzer.analyze();
 			updatePreviousHighestBar(highestBar);
@@ -67,45 +79,13 @@
 	});
 
 	setControls({
-		onStart: () => {
-			analyzer.start();
-			loop.play();
-			animation?.play();
-		},
-		onStop: () => {
-			analyzer.stop();
-			loop.pause();
-			animation?.pause();
-		}
+		onStart: () => loop.play(),
+		onStop: () => loop.pause()
 	});
-
-	function setupSvg(el: SVGElement) {
-		const end = el.querySelector('#end');
-		const start = el.querySelector('#start');
-		if (!start || !end) return;
-		if (!(start instanceof SVGPathElement)) return;
-		if (!(end instanceof SVGPathElement)) return;
-
-		end.style.transformBox = 'fill-box';
-		end.style.transformOrigin = '50% 50%';
-		end.style.visibility = 'hidden';
-
-		start.removeAttribute('id');
-		start.classList.add('start');
-		start.style.transformBox = 'fill-box';
-		start.style.transformOrigin = '50% 50%';
-
-		const frag = document.createDocumentFragment();
-		for (let i = 0; i < 20; i++) {
-			const clone = start.cloneNode();
-			frag.appendChild(clone);
-		}
-		start.parentElement?.appendChild(frag);
-	}
 
 	function createAnimation() {
 		utils.set('.start', {
-			rotate: -90
+			rotate: -45
 		});
 
 		animation = animate('.start', {
@@ -116,26 +96,9 @@
 			alternate: true,
 			delay: stagger(100),
 			rotate: 0,
-			autoplay: false,
-			onUpdate: (anim) => {
-				// if (anim.reversed) {
-				// 	if (anim.progress < maxProgress) {
-				// 		anim.pause();
-				// 	}
-				// } else {
-				// 	if (anim.progress > maxProgress) {
-				// 		anim.pause();
-				// 	}
-				// }
-			}
+			autoplay: false
 		});
 	}
 </script>
 
-<SvgRenderer
-	svg={svgCode}
-	onMount={(e) => {
-		setupSvg(e);
-		createAnimation();
-	}}
-/>
+<SvgRenderer svg={svgCode} />

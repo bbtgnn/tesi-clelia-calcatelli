@@ -2,5 +2,7 @@
 	"files.associations": {
 		"*.css": "tailwindcss"
 	},
-	"tailwindCSS.classAttributes": ["class", "className", "containerClass"]
+	"tailwindCSS.classAttributes": ["class", "className", "containerClass"],
+	"editor.codeActionsOnSave": ["source.organizeImports", "source.fixAll.eslint"],
+	"eslint.validate": ["javascript", "typescript", "svelte"]
 }
