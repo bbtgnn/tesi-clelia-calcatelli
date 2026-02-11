@@ -1,24 +1,7 @@
-<script module lang="ts">
-	import { Play, Pause, ChartBar, ArrowLeft } from '@lucide/svelte';
-
-	interface Controls {
-		onStart?: () => void;
-		onStop?: () => void;
-	}
-
-	const controls = $state<Controls>({
-		onStart: undefined,
-		onStop: undefined
-	});
-
-	export function setControls(c: Controls) {
-		controls.onStart = c.onStart;
-		controls.onStop = c.onStop;
-	}
-</script>
-
 <script lang="ts">
+	import { ArrowLeft, ChartBar, Pause, Play } from '@lucide/svelte';
 	import Popover from '$lib/components/popover.svelte';
+	import { posterManager } from '$lib/poster-manager';
 	import { Button } from '$lib/shadcn/ui/button';
 
 	let { children } = $props();
@@ -40,7 +23,7 @@
 				</div>
 			{/snippet}
 		</Popover>
-		<Button size="icon" onclick={() => controls.onStart?.()}><Play /></Button>
-		<Button size="icon" onclick={() => controls.onStop?.()}><Pause /></Button>
+		<Button size="icon" onclick={() => posterManager.loop.play()}><Play /></Button>
+		<Button size="icon" onclick={() => posterManager.loop.pause()}><Pause /></Button>
 	</div>
 </div>

@@ -24,9 +24,11 @@ export class Analyzer {
 	private player: Tone.Player;
 	private fft: Tone.FFT;
 
-	constructor(private config: Config) {
+	private barCount = 20;
+	private ready = false;
+
+	constructor() {
 		this.player = new Tone.Player();
-		this.player.loop = this.config.loop ?? false;
 		this.fft = new Tone.FFT({
 			size: DEFAULT_FFT_SIZE,
 			smoothing: 0.8,
@@ -34,13 +36,20 @@ export class Analyzer {
 		});
 		this.player.connect(this.fft);
 		this.fft.toDestination();
-		this.player.load(this.config.audioUrl);
+	}
+
+	setConfig(config: Config) {
+		this.ready = false;
+		this.barCount = config.barCount;
+		this.player.loop = config.loop ?? true;
+		this.player.load(config.audioUrl).then(() => {
+			this.ready = true;
+		});
 	}
 
 	assertReady() {
-		if (!this.player.loaded) {
-			throw new Error('Audio analyzer is not ready');
-		}
+		if (this.ready) return;
+		throw new Error('Audio analyzer is not ready');
 	}
 
 	async start() {
@@ -60,7 +69,7 @@ export class Analyzer {
 
 	analyze(): Result {
 		const fftData = this.fft.getValue();
-		const bars = convertFFTToBarData(fftData, this.config.barCount, (index) =>
+		const bars = convertFFTToBarData(fftData, this.barCount, (index) =>
 			this.fft.getFrequencyOfIndex(index)
 		);
 		const highestBar = bars.findIndex((b) => b.value === Math.max(...bars.map((b) => b.value)));
