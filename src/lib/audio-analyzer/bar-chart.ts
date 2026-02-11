@@ -5,17 +5,16 @@ import type { Result } from './audio-analyzer';
 //
 
 export class BarVisualizer {
-	private sketch: P5 | null = null;
-
 	constructor(private getAnalysisResult: () => Result) {}
 
-	attach(canvas: HTMLCanvasElement) {
-		this.sketch = new P5((_) => {
+	attach(container: HTMLDivElement) {
+		new P5((_) => {
 			const margin = 10;
 			const gap = 2;
 
 			_.setup = () => {
-				_.createCanvas(400, 200, 'p2d', canvas);
+				const canvas = _.createCanvas(400, 200);
+				canvas.parent(container);
 			};
 
 			_.draw = () => {

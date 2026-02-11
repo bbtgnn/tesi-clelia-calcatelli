@@ -14,14 +14,20 @@
 	<div class="absolute top-0 left-0 p-2 md:p-4">
 		<Button href="/" size="icon"><ArrowLeft /></Button>
 	</div>
-	<div class={['absolute top-0 right-0 p-2 md:p-4', showBarVisualizer ? 'block' : 'hidden']}>
-		<canvas
-			{@attach (c) => {
-				posterManager.barVisualizer.attach(c);
-			}}
-		></canvas>
+
+	<div class="absolute top-0 right-0 p-2 md:p-4">
+		<div
+			class={[
+				'rounded-md bg-primary p-2',
+				showBarVisualizer ? 'block' : 'hidden',
+				'[&>canvas]:w-full [&>canvas]:rounded-xs'
+			]}
+			{@attach (c) => posterManager.barVisualizer.attach(c)}
+		></div>
 	</div>
+
 	{@render children()}
+
 	<div class="absolute right-0 bottom-0 p-2 md:p-4">
 		<Button size="icon" onclick={() => (showBarVisualizer = !showBarVisualizer)}>
 			<ChartBar />
