@@ -3,10 +3,10 @@ import P5 from 'p5';
 //
 
 interface Config {
-	onInit?: () => void;
-	onPause?: () => void;
-	onPlay?: () => void;
-	onUpdate: () => void;
+	onInit?: (sketch: P5) => void;
+	onPause?: (sketch: P5) => void;
+	onPlay?: (sketch: P5) => void;
+	onUpdate: (sketch: P5) => void;
 	frameRate?: number;
 }
 
@@ -19,22 +19,22 @@ export class Loop {
 				_.noCanvas();
 				_.frameRate(config.frameRate ?? 30);
 				_.noLoop();
-				config.onInit?.();
+				config.onInit?.(_);
 			};
 
 			_.draw = () => {
-				config.onUpdate();
+				config.onUpdate(_);
 			};
 		});
 	}
 
 	play() {
-		this.config.onPlay?.();
+		this.config.onPlay?.(this.sketch);
 		this.sketch.loop();
 	}
 
 	pause() {
-		this.config.onPause?.();
+		this.config.onPause?.(this.sketch);
 		this.sketch.noLoop();
 	}
 }

@@ -11,10 +11,10 @@ interface Config {
 }
 
 export class PosterManager {
+	private config?: Config;
 	private analyzer = new AudioAnalyzer.Analyzer();
 	private animation: JSAnimation | undefined;
-
-	private config?: Config;
+	public readonly barVisualizer = new AudioAnalyzer.BarVisualizer(() => this.analyzer.analyze());
 
 	public readonly loop = new Loop({
 		onPlay: () => {
