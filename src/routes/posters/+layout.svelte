@@ -7,7 +7,7 @@
 
 	let { children } = $props();
 
-	let showBarVisualizer = $state(false);
+	let showBarVisualizer = $state(true);
 </script>
 
 <div class="relative flex h-screen w-screen items-center justify-center overflow-hidden p-2 md:p-4">

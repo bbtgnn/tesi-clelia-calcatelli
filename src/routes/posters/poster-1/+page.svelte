@@ -9,9 +9,7 @@
 
 	//
 
-	const duration = 1000;
 	let previousHighestBar: number | undefined;
-	let done = false;
 
 	const updatePreviousHighestBar = createThrottled((highestBar: number) => {
 		previousHighestBar = highestBar;
@@ -19,34 +17,43 @@
 
 	posterManager.setup({
 		audioUrl,
-		barCount: 20,
+		barCount: 60,
 		loop: true,
 
 		onUpdate: ({ analysisResult: { highestBar }, animation }) => {
 			updatePreviousHighestBar(highestBar);
 			if (previousHighestBar === undefined || previousHighestBar === highestBar) return;
 
-			if (highestBar < previousHighestBar && !done) {
-				animation?.pause();
-				done = true;
+			if (highestBar === 0) {
+				animation.pause();
+			} else {
+				animation.play();
 			}
-			if (highestBar > previousHighestBar && done) {
-				done = false;
-				animation?.play();
-			}
+
+			// if (highestBar < previousHighestBar && !done) {
+			// 	animation?.pause();
+			// 	done = true;
+			// }
+			// if (highestBar > previousHighestBar && done) {
+			// 	done = false;
+			// 	animation?.play();
+			// }
 		},
 
 		createAnimation: () => {
 			utils.set('.start', {
 				rotate: -45
 			});
+			// return animate('#end', {
+			// 	rotate: 0
+			// });
 			return animate('.start', {
 				d: svg.morphTo('#end'),
 				ease: 'linear',
-				duration,
+				duration: 500,
 				loop: true,
 				alternate: true,
-				delay: stagger(100),
+				delay: stagger(20),
 				rotate: 0,
 				autoplay: false
 			});
