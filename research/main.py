@@ -72,15 +72,50 @@ playhead = ax.axvline(0, color='white', linewidth=2)
 plt.tight_layout()
 
 # ======================
-# 6. Audio playback
+# 6. Audio playback (loop + play/pause)
 # ======================
-start_time = None
+stream_start_time = None
+stream_start_position = 0.0
+paused = False
+paused_position = 0.0
 
 
-def start_audio():
-    global start_time
-    sd.play(y, sr, blocking=False)
-    start_time = time.perf_counter()
+def play_from(position=0.0):
+    global stream_start_time, stream_start_position, paused
+    paused = False
+    stream_start_position = position
+    stream_start_time = time.perf_counter()
+    start_sample = int(position * sr)
+    sd.play(y[start_sample:], sr, blocking=False)
+
+
+def pause_playback():
+    global paused, paused_position, stream_start_time, stream_start_position
+    sd.stop()
+    paused = True
+    if stream_start_time is not None:
+        paused_position = stream_start_position + (time.perf_counter() - stream_start_time)
+
+
+def get_elapsed():
+    if paused:
+        return paused_position
+    if stream_start_time is not None:
+        return stream_start_position + (time.perf_counter() - stream_start_time)
+    return 0.0
+
+
+def on_key(event):
+    global paused
+    if event.key != " ":
+        return
+    if paused:
+        play_from(paused_position)
+    else:
+        pause_playback()
+
+
+fig.canvas.mpl_connect("key_press_event", on_key)
 
 # ======================
 # 7. Animation update
@@ -88,12 +123,14 @@ def start_audio():
 
 
 def update(frame):
-    if start_time is None:
+    if stream_start_time is None and not paused:
         return playhead,
 
-    elapsed = time.perf_counter() - start_time
-    if elapsed > duration:
-        return playhead,
+    elapsed = get_elapsed()
+    # Loop when we reach the end (only when playing)
+    if not paused and elapsed >= duration:
+        play_from(0.0)
+        elapsed = 0.0
 
     playhead.set_xdata([elapsed, elapsed])
     return playhead,
@@ -103,7 +140,7 @@ ani = FuncAnimation(fig, update, interval=30, blit=True)
 
 # Start playback when window appears
 plt.pause(0.1)
-start_audio()
+play_from(0.0)
 
 plt.show()
 
