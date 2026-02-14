@@ -1,8 +1,8 @@
 {
-	"files.associations": {
-		"*.css": "tailwindcss"
-	},
+	"files.associations": { "*.css": "tailwindcss" },
 	"tailwindCSS.classAttributes": ["class", "className", "containerClass"],
 	"editor.codeActionsOnSave": ["source.organizeImports", "source.fixAll.eslint"],
-	"eslint.validate": ["javascript", "typescript", "svelte"]
+	"eslint.validate": ["javascript", "typescript", "svelte"],
+	"python.defaultInterpreterPath": "${workspaceFolder}/research/.venv/bin/python",
+	"python.analysis.extraPaths": ["${workspaceFolder}/research"]
 }

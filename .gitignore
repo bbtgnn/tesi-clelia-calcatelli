@@ -20,7 +20,7 @@ Thumbs.db
 !.env.test
 
 # Python (research)
-research/.venv
+.venv
 
 # Vite
 vite.config.js.timestamp-*

@@ -1,58 +1,110 @@
-"""Draw spectrogram of an audio file from src/lib/assets/sounds/."""
-
-from pathlib import Path
-
+import numpy as np
+import matplotlib.pyplot as plt
 import librosa
 import librosa.display
-import matplotlib.pyplot as plt
-import numpy as np
+import sounddevice as sd
+import time
+from matplotlib.animation import FuncAnimation
 
-# Path to sounds folder (relative to project root)
-PROJECT_ROOT = Path(__file__).parent
-SOUNDS_DIR = PROJECT_ROOT / "sounds"
+# ======================
+# 1. Load audio
+# ======================
+audio_path = "research/sounds/il laminatore.mp3"  # <-- change to your file
+y, sr = librosa.load(audio_path, sr=None, mono=True)
 
-# Pick an audio file (change this to use another file from the folder)
-AUDIO_FILE = SOUNDS_DIR / "il tornitore.mp3"
+duration = len(y) / sr
+
+# ======================
+# 2. Spectrogram
+# ======================
+n_fft = 2048
+hop_length = 512
+
+S = np.abs(librosa.stft(y, n_fft=n_fft, hop_length=hop_length))
+S_db = librosa.amplitude_to_db(S, ref=np.max)
+
+# Time axis for frames
+times = librosa.times_like(S, sr=sr, hop_length=hop_length)
+
+# ======================
+# 3. Onset detection
+# ======================
+onset_frames = librosa.onset.onset_detect(y=y, sr=sr, hop_length=hop_length)
+onset_times = librosa.frames_to_time(
+    onset_frames, sr=sr, hop_length=hop_length)
+
+# ======================
+# 4. Spectral centroid
+# ======================
+centroid = librosa.feature.spectral_centroid(
+    y=y, sr=sr, hop_length=hop_length)[0]
+
+# ======================
+# 5. Plot setup
+# ======================
+fig, ax = plt.subplots(figsize=(12, 6))
+
+# Spectrogram
+img = librosa.display.specshow(
+    S_db,
+    sr=sr,
+    hop_length=hop_length,
+    x_axis="time",
+    y_axis="log",
+    cmap="magma",
+    ax=ax
+)
+
+ax.set_title("Spectrogram with Onsets & Spectral Centroid")
+
+# Onset lines
+for onset in onset_times:
+    ax.axvline(onset, color='cyan', alpha=0.6, linewidth=1)
+
+# Spectral centroid curve
+centroid_line, = ax.plot(times, centroid, color='lime',
+                         linewidth=2, label="Spectral Centroid")
+ax.legend(loc="upper right")
+
+# Playhead line
+playhead = ax.axvline(0, color='white', linewidth=2)
+
+plt.tight_layout()
+
+# ======================
+# 6. Audio playback
+# ======================
+start_time = None
 
 
-def main() -> None:
-    if not AUDIO_FILE.exists():
-        raise FileNotFoundError(f"Audio file not found: {AUDIO_FILE}")
+def start_audio():
+    global start_time
+    sd.play(y, sr, blocking=False)
+    start_time = time.perf_counter()
 
-    # Load audio (mono, resampled to 22050 Hz for consistent spectrogram)
-    y, sr = librosa.load(AUDIO_FILE, sr=22050, mono=True)
-
-    # Compute mel spectrogram (log amplitude)
-    mel_spec = librosa.feature.melspectrogram(
-        y=y, sr=sr, n_mels=128, fmax=8000)
-    mel_spec_db = librosa.power_to_db(mel_spec, ref=np.max)
-
-    # Compute onset envelope and detect onsets
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
-    onsets = librosa.onset.onset_detect(
-        onset_envelope=onset_env, sr=sr, backtrack=True
-    )
-    times = librosa.frames_to_time(onsets, sr=sr)
-
-    # Plot
-    fig, ax = plt.subplots(figsize=(12, 5))
-    img = librosa.display.specshow(
-        mel_spec_db,
-        x_axis="time",
-        y_axis="mel",
-        sr=sr,
-        fmax=8000,
-        ax=ax,
-        cmap="magma",
-    )
-    # Red vertical lines at each onset
-    for t in times:
-        ax.axvline(x=t, color="red", linewidth=1, alpha=0.9)
-    fig.colorbar(img, ax=ax, format="%+2.0f dB")
-    ax.set_title(f"Spectrogram: {AUDIO_FILE.name}")
-    plt.tight_layout()
-    plt.show()
+# ======================
+# 7. Animation update
+# ======================
 
 
-if __name__ == "__main__":
-    main()
+def update(frame):
+    if start_time is None:
+        return playhead,
+
+    elapsed = time.perf_counter() - start_time
+    if elapsed > duration:
+        return playhead,
+
+    playhead.set_xdata([elapsed, elapsed])
+    return playhead,
+
+
+ani = FuncAnimation(fig, update, interval=30, blit=True)
+
+# Start playback when window appears
+plt.pause(0.1)
+start_audio()
+
+plt.show()
+
+sd.stop()
